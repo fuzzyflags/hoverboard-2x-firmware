@@ -85,8 +85,8 @@ int16_t outI 							= 0;
 int32_t speedError 				= 0;
 int32_t errorIntegral			= 0;	// PID components scaled up by 15 bits
 
-bool		stepperMode				= FALSE;
-bool		phaseRestart			= FALSE;
+bool		stepperMode				= false;
+bool		phaseRestart			= false;
 int32_t stepperPeriod     = 0;
 int32_t stepperTicks      = 0;
 
@@ -106,7 +106,7 @@ int16_t 		bldcInputPwm 		= 0;
 FlagStatus 	bldcEnable 			= RESET;
 int32_t 		speedSetpoint   = 0;
 int32_t 		lastSpeedSetpoint   = 0;
-bool				closedLoopSpeed	= FALSE;
+bool				closedLoopSpeed	= false;
 
 // ADC buffer to be filled by DMA
 adc_buf_t adc_buffer;
@@ -133,7 +133,7 @@ int16_t bldcFilteredPwm = 0;
 //----------------------------------------------------------------------------
 // Block PWM calculation based on position
 //----------------------------------------------------------------------------
-__INLINE void blockPWM(int pwm, int pwmPos, int *y, int *b, int *g)
+static __INLINE void blockPWM(int pwm, int pwmPos, int *y, int *b, int *g)
 {
 	// Note:  These now cycle from 0 to 5 with positive applied PWM
   switch(pwmPos)
@@ -181,7 +181,7 @@ __INLINE void blockPWM(int pwm, int pwmPos, int *y, int *b, int *g)
 void SetEnable(FlagStatus setEnable)
 {
 	if (!bldcEnable || !setEnable) {
-		closedLoopSpeed   = FALSE;
+		closedLoopSpeed   = false;
 	}
 	bldcEnable = setEnable;
 }
@@ -196,7 +196,7 @@ void SetSpeed(int16_t speed)
 		resetInactivityTimer();
 	}
 
-	closedLoopSpeed = TRUE;
+	closedLoopSpeed = true;
 	speedSetpoint = CLAMP(speed, -5000, 5000);
 	
 	if (speed > 0)
@@ -212,17 +212,17 @@ void SetSpeed(int16_t speed)
   if ( (speedMode == SPEED_MODE_PF) ||
        ((speedMode == SPEED_MODE_DUAL) && (abs16(speedSetpoint) > maxStepSpeed))
 		 ) { 
-		stepperMode = FALSE;
-		phaseRestart = FALSE;
+		stepperMode = false;
+		phaseRestart = false;
 	} else {
 
 		// do we need to defer switching to stepper to get synched?
 		// we do this is we are currently in closed loop and are slowing down.
 		// If we don't do this, the wheel jumps forward or back
 		if (controlMode == 3) {
-			phaseRestart = TRUE;
+			phaseRestart = true;
 		} else {
-			stepperMode = TRUE; 							 // Turn on stepper now
+			stepperMode = true; 							 // Turn on stepper now
 		}
 		
 		stepperPeriod = SINE_TICKS_FACTOR / abs16(speedSetpoint) ;
@@ -238,8 +238,8 @@ void SetPower(int16_t power)
 	if (abs16(power) > 5) {
 		resetInactivityTimer();
 	}
-	closedLoopSpeed = FALSE;
-	stepperMode   = FALSE;
+	closedLoopSpeed = false;
+	stepperMode   = false;
 	speedSetpoint = 0;
 	
 	if (power == 0)
@@ -361,8 +361,8 @@ void CalculateBLDC(void)
 		
 		// if we are waiting for a phase restart, load new angle.
 		if (phaseRestart) {
-			phaseRestart = FALSE;
-			stepperMode = TRUE;
+			phaseRestart = false;
+			stepperMode = true;
 			
 			setPhaseAngle(getTransitionAngle());
 		}

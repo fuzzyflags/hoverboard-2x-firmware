@@ -186,7 +186,7 @@ void ShutOff(void)
 	
 	// Ensure that drive is off and estop status set.
 	SetPWM(0);
-	HUGS_ESTOP   = TRUE;	
+	HUGS_ESTOP   = true;	
 	SetEnable(RESET);
 	SendHUGSReply();			// Transfer ESTOP to Controller
 	SendHUGSCmd(XXX, 0);	// Tell possible slave to stop as well.

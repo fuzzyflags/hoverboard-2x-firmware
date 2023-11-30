@@ -39,7 +39,7 @@
 #define USART_HUGS_TX_BYTES (HUGS_MAX_DATA + 8)  // Max buffeer size including
 #define USART_HUGS_RX_BYTES (HUGS_MAX_DATA + 8)  // start '/' and stop character '\n'
 
-static bool 	  sHUGSRecord = FALSE;
+static bool 	  sHUGSRecord = false;
 
 extern uint8_t usartHUGS_rx_buf[USART_HUGS_RX_BUFFERSIZE];
 static uint8_t sUSARTHUGSRecordBuffer[USART_HUGS_RX_BYTES];
@@ -65,7 +65,7 @@ uint16_t CalcCRC(uint8_t *ptr, int count);
 void ShutOff(void);
 
 // Variables updated by HUGS Message
-bool			HUGS_ESTOP = FALSE;
+bool			HUGS_ESTOP = false;
 uint16_t	HUGS_WatchDog = 1000 ; // TIMEOUT_MS;
 uint8_t	  HUGS_Destination = 0;
 uint8_t	  HUGS_Sequence = 0;
@@ -74,7 +74,7 @@ RSP_ID		HUGS_ResponseID = NOR;
 
 
 void SetESTOP(void) {
-	HUGS_ESTOP = TRUE;
+	HUGS_ESTOP = true;
 }
 
 //----------------------------------------------------------------------------
@@ -89,7 +89,7 @@ void UpdateUSARTHUGSInput(void)
 	if (!sHUGSRecord && (character == '/'))
 	{
 		sUSARTHUGSRecordBufferCounter = 0;
-		sHUGSRecord = TRUE;
+		sHUGSRecord = true;
 	}
 
 	// Process the new charcter
@@ -105,7 +105,7 @@ void UpdateUSARTHUGSInput(void)
 			if ((length = sUSARTHUGSRecordBuffer[1]) > HUGS_MAX_DATA){
 				// Bad data length
 				sUSARTHUGSRecordBufferCounter = 0;
-				sHUGSRecord = FALSE;
+				sHUGSRecord = false;
 			}
 			else if (sUSARTHUGSRecordBufferCounter >  (length + HUGS_EOM_OFFSET))
 			{
@@ -113,7 +113,7 @@ void UpdateUSARTHUGSInput(void)
 				if (CheckUSARTHUGSInput (sUSARTHUGSRecordBuffer)) {
 					// A complete message was found.  Reset buffer and status
 					sUSARTHUGSRecordBufferCounter = 0;
-					sHUGSRecord = FALSE;
+					sHUGSRecord = false;
 				} else {
 					// Message was invalid.  it could have been a bad SOM
 					// check to see if the buffer holds another SOM (/)
@@ -133,7 +133,7 @@ void UpdateUSARTHUGSInput(void)
 						memcpy(sUSARTHUGSRecordBuffer, sUSARTHUGSRecordBuffer + slider, sUSARTHUGSRecordBufferCounter);
 					} else {
 						sUSARTHUGSRecordBufferCounter = 0;
-						sHUGSRecord = FALSE;
+						sHUGSRecord = false;
 					}
 				}
 			}
@@ -154,7 +154,7 @@ bool CheckUSARTHUGSInput(uint8_t USARTBuffer[])
 	if ( USARTBuffer[0] != '/' ||
 		USARTBuffer[length + HUGS_EOM_OFFSET ] != '\n')
 	{
-		return FALSE;
+		return false;
 	}
 
 	// Calculate CRC (first bytes up to, not including crc)
@@ -164,7 +164,7 @@ bool CheckUSARTHUGSInput(uint8_t USARTBuffer[])
 	if ( USARTBuffer[length + 5] != (crc & 0xFF) ||
 		   USARTBuffer[length + 6] != ((crc >> 8) & 0xFF) )
 	{
-		return FALSE;
+		return false;
 	}
 	
 	// command is valid.  Process it now
@@ -228,7 +228,7 @@ bool CheckUSARTHUGSInput(uint8_t USARTBuffer[])
 	// Reset the pwm timout to avoid stopping motors
 	ResetTimeout();
 	
-	return TRUE;
+	return true;
 }
 
 

@@ -1,0 +1,12 @@
+{
+  "cmake.configureOnOpen": false,
+  "files.associations": {
+    "*.json.liquid": "json",
+    "*.yaml.liquid": "yaml",
+    "*.md.liquid": "markdown",
+    "*.js.liquid": "liquid-javascript",
+    "*.css.liquid": "liquid-css",
+    "*.scss.liquid": "liquid-scss",
+    "system_gd32f1x0.h": "c"
+  }
+}

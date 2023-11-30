@@ -36,7 +36,7 @@ uint32_t   msTicks 		 = 0;
 uint32_t   sysTicks 	 = 0;
 uint32_t   driveSafeMs = 0;
 FlagStatus timedOut 	 = SET;
-bool	     msToggle 	 = FALSE;
+bool	     msToggle 	 = false;
 
 extern FlagStatus activateWeakening;
 extern int16_t HUGS_WatchDog;
@@ -64,7 +64,7 @@ void ResetTimeout(void)
 //----------------------------------------------------------------------------
 void TIMER13_IRQHandler(void)
 {	
-	msToggle = msToggle ? FALSE : TRUE;
+	msToggle = msToggle ? false : true;
 	
 	if (msToggle) {
 		msTicks++;

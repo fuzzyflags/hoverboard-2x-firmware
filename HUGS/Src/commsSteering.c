@@ -42,7 +42,7 @@
 
 extern uint8_t usartSteer_COM_rx_buf[USART_STEER_COM_RX_BUFFERSIZE];
 
-static bool 	 sSteerRecord = FALSE;
+static bool 	 sSteerRecord = false;
 static uint8_t sUSARTSteerRecordBuffer[USART_STEER_RX_BYTES];
 static uint8_t sUSARTSteerRecordBufferCounter = 0;
 static uint8_t 	steerReply[USART_STEER_TX_BYTES] = {'/', '\n'};
@@ -66,7 +66,7 @@ void UpdateUSARTSteerInput(void)
 	if (!sSteerRecord && (character == '/'))
 	{
 		sUSARTSteerRecordBufferCounter = 0;
-		sSteerRecord = TRUE;
+		sSteerRecord = true;
 	}
 
 	// Process the new charcter
@@ -82,7 +82,7 @@ void UpdateUSARTSteerInput(void)
 			if ((length = sUSARTSteerRecordBuffer[1]) > STEER_MAX_DATA){
 				// Bad data length
 				sUSARTSteerRecordBufferCounter = 0;
-				sSteerRecord = FALSE;
+				sSteerRecord = false;
 			}
 			else if (sUSARTSteerRecordBufferCounter >  (length + STEER_EOM_OFFSET))
 			{
@@ -95,7 +95,7 @@ void UpdateUSARTSteerInput(void)
 					
 					// A complete message was found.  Reset buffer and status
 					sUSARTSteerRecordBufferCounter = 0;
-					sSteerRecord = FALSE;
+					sSteerRecord = false;
 				} else {
 					// Message was invalid.  it could have been a bad SOM
 					// check to see if the buffer holds another SOM (/)
@@ -115,7 +115,7 @@ void UpdateUSARTSteerInput(void)
 						memcpy(sUSARTSteerRecordBuffer, sUSARTSteerRecordBuffer + slider, sUSARTSteerRecordBufferCounter);
 					} else {
 						sUSARTSteerRecordBufferCounter = 0;
-						sSteerRecord = FALSE;
+						sSteerRecord = false;
 					}
 				}
 			}
@@ -142,7 +142,7 @@ bool CheckUSARTSteerInput(uint8_t USARTBuffer[])
 	if ( USARTBuffer[0] != '/' ||
 		USARTBuffer[length + STEER_EOM_OFFSET ] != '\n')
 	{
-		return FALSE;
+		return false;
 	}
 
 	// Calculate CRC (first bytes up to, not including crc)
@@ -152,7 +152,7 @@ bool CheckUSARTSteerInput(uint8_t USARTBuffer[])
 	if ( USARTBuffer[length + 5] != (crc & 0xFF) ||
 		   USARTBuffer[length + 6] != ((crc >> 8) & 0xFF) )
 	{
-		return FALSE;
+		return false;
 	}
 	
 	// command is valid.  Process it now
@@ -203,7 +203,7 @@ bool CheckUSARTSteerInput(uint8_t USARTBuffer[])
 	// Reset the pwm timout to avoid stopping motors
 	ResetTimeout();
 	
-	return TRUE;
+	return true;
 }
 
 int16_t		max(int16_t a, int16_t b){
