@@ -96,12 +96,21 @@ void TimeoutTimer_init(void)
 	// Initial deinitialize of the timer
 	timer_deinit(TIMER13);
 	
+	rcu_clock_freq_enum timerclkSrc = CK_APB1;
+	uint32_t clk_src = 0;
+	uint32_t APBx_PSC = (RCU_CFG0 & RCU_CFG0_APB1PSC) >> 8;;
+	if (0 != (APBx_PSC & 0x04)) {
+			clk_src = 2 * rcu_clock_freq_get(timerclkSrc);
+	} else {
+			clk_src =  rcu_clock_freq_get(timerclkSrc);
+	}
+	
 	// Set up the basic parameter struct for the timer
 	// Update event will be fired every 1ms
 	timeoutTimer_paramter_struct.counterdirection 	= TIMER_COUNTER_UP;
-	timeoutTimer_paramter_struct.prescaler 					= 0;
+	timeoutTimer_paramter_struct.prescaler = clk_src / 10000 - 1;
 	timeoutTimer_paramter_struct.alignedmode 				= TIMER_COUNTER_CENTER_DOWN;
-	timeoutTimer_paramter_struct.period							= 72000000 / 2 / TIMEOUT_FREQ;
+	timeoutTimer_paramter_struct.period							= (TIMEOUT_FREQ / 1000)*10 - 1;
 	timeoutTimer_paramter_struct.clockdivision 			= TIMER_CKDIV_DIV1;
 	timeoutTimer_paramter_struct.repetitioncounter 	= 0;
 	timer_auto_reload_shadow_disable(TIMER13);
