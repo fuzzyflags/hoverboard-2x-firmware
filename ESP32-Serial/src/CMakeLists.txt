@@ -1,0 +1,1 @@
+idf_component_register(SRCS "utils.c" "ap_service.c" "remote_control_main.c" INCLUDE_DIRS ".")
