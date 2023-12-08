@@ -1,0 +1,68 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en" style="width: 100%">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FZ Remote Client</title>
+  <style>
+    *{
+      box-sizing: border-box;
+    }
+    body{
+      width: 100%; margin: 0; padding: 1em 2em;
+    }
+  </style>
+</head>
+<body>
+  <h1>FZ2000 Remote Controller</h1>
+  <input type="range" id="powerSlider"
+    min="-300" max="300" step="1" value="0"
+    style="width: 100%"
+  />
+  <span id="powerValue">0</span>
+  <script>
+    const socket = new WebSocket('ws://localhost:3000');
+
+    // Connection opened
+    socket.addEventListener('open', (event) => {
+      console.log('Connected to WebSocket server');
+      // You can send messages to the server here, if needed
+      // socket.send('Hello, server!');
+    });
+
+    // Listen for messages from the server
+    socket.addEventListener('message', (event) => {
+      console.log(`Received message from server: ${event.data}`);
+      // Handle the received message here
+    });
+
+    // Connection closed
+    socket.addEventListener('close', (event) => {
+      console.log('Connection to WebSocket server closed');
+    });
+
+    // Handle errors
+    socket.addEventListener('error', (event) => {
+      console.error('WebSocket Error:', event);
+    });
+
+    // Add an event listener for slider changes
+    const powerSlider = document.getElementById('powerSlider');
+    powerSlider.addEventListener('input', powerSliderUpdated);
+
+    // Function to send the current slider value to the server
+    function powerSliderUpdated(evt) {
+      const power = evt.target.value;
+      const valueBox = document.getElementById("powerValue");
+      valueBox.innerText = String(power);
+      console.log(`Sending slider value: ${power}`);
+      // Send the slider value to the server
+      socket.send(JSON.stringify({ power }))
+    }
+
+    // Close the connection (optional)
+    // socket.close();
+  </script>
+</body>
+</html>

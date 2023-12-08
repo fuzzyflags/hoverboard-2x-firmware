@@ -58,12 +58,12 @@
 #define TASK_STACK_SIZE    2048
 
 static const char *TAG = "remote_control";
-volatile short power = 200;
+volatile short power = 0;
 
 #define BUF_SIZE (1024)
 
 short data_to_short(const char *data){
-  return 200;
+  return (data[0] << 8) | data[1];
 }
 
 static void transmit_power(void *arg) {
@@ -175,6 +175,7 @@ static void udp_server_task(void *pvParameters) {
             // Error occurred during receiving
             if (len < 0) {
                 ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+                power = 0;
                 break;
             }
             // Data received
@@ -197,9 +198,13 @@ static void udp_server_task(void *pvParameters) {
             rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
             ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
             ESP_LOGI(TAG, "%s", rx_buffer);
+            // SET POWER
+            power = data_to_short(rx_buffer);
+            ESP_LOGI(TAG, "New power value: %d", power);
 
             int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
             if (err < 0) {
+                power = 0;
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
                 break;
             }
@@ -208,6 +213,7 @@ static void udp_server_task(void *pvParameters) {
         if (sock != -1) {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(sock, 0);
+            power = 0;
             close(sock);
         }
     }
