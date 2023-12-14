@@ -7,6 +7,19 @@ const path = require('path');
 const dgram = require('node:dgram');
 const udpClient = dgram.createSocket('udp4');
 
+const sendUdp = (speed) => {
+  console.log('Sending', speed)
+  const buffer = Buffer.alloc(2);
+  buffer.writeInt16LE(speed);
+  buffer.reverse(); // TODO: fix? improve?
+  udpClient.send(buffer, 0, buffer.byteLength, 9042, '192.168.4.1',
+    (err) => {
+      if (err) {
+        console.error('Error sending UDP message:', err);
+      }
+    });
+}
+
 // Create an HTTP server
 const server = http.createServer((req, res) => {
   if (req.url === '/') {
@@ -39,22 +52,13 @@ wss.on('connection', (ws) => {
   // Event listener for messages from clients
   ws.on('message', (payload) => {
     payload = JSON.parse(payload)
-    console.log(`Received message:`);
     for(const [k, v] of Object.entries(payload)){
       console.log(`\t${k}: ${v}`)
     }
-    const parsedPower = parseInt(payload['power'], 10);
-    if (!isNaN(parsedPower)) {
-      const buffer = Buffer.alloc(2);
-      buffer.writeInt16LE(parsedPower);
-      buffer.reverse();
+    const parsedSpeed = parseInt(payload['speed'], 10);
+    if (!isNaN(parsedSpeed)) {
       // SEND VALUES TO ESP32 VIA UDP
-      udpClient.send(buffer, 0, buffer.byteLength, 9042, '192.168.4.1',
-        (err) => {
-          if (err) {
-            console.error('Error sending UDP message:', err);
-          }
-        });
+      sendUdp(parsedSpeed);
     } else {
       console.log('Invalid message format. Expected an integer.');
     }
@@ -62,16 +66,8 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     console.log('Client disconnected');
-    const buffer = Buffer.alloc(2);
-    buffer.writeInt16LE(0);
-    buffer.reverse();
     for(let i = 0; i < 20; i++){
-      udpClient.send(buffer, 0, buffer.byteLength, 9042, '192.168.4.1',
-        (err) => {
-          if (err) {
-            console.error('Error sending UDP message:', err);
-          }
-        });
+      sendUdp(0)
     }
   });
 });
@@ -80,4 +76,3 @@ const PORT = 3000;
 server.listen(PORT, () => {
   console.log(`Server listening on http://localhost:${PORT}`);
 });
-

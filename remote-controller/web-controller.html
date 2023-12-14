@@ -16,11 +16,11 @@
 </head>
 <body>
   <h1>FZ2000 Remote Controller</h1>
-  <input type="range" id="powerSlider"
-    min="-300" max="300" step="1" value="0"
+  <input type="range" id="speedSlider"
+    min="-1000" max="1000" step="1" value="0"
     style="width: 100%"
   />
-  <span id="powerValue">0</span>
+  <span id="speedValue">0</span>
   <script>
     const socket = new WebSocket('ws://localhost:3000');
 
@@ -48,17 +48,17 @@
     });
 
     // Add an event listener for slider changes
-    const powerSlider = document.getElementById('powerSlider');
-    powerSlider.addEventListener('input', powerSliderUpdated);
+    const slider = document.getElementById('powerSlider');
+    slider.addEventListener('input', sliderUpdated);
 
     // Function to send the current slider value to the server
-    function powerSliderUpdated(evt) {
-      const power = evt.target.value;
-      const valueBox = document.getElementById("powerValue");
-      valueBox.innerText = String(power);
-      console.log(`Sending slider value: ${power}`);
+    function sliderUpdated(evt) {
+      const { value } = evt.target;
+      const valueBox = document.getElementById("speedValue");
+      valueBox.innerText = String(value);
+      console.log(`Sending ${evt.target.id} value: ${value}`);
       // Send the slider value to the server
-      socket.send(JSON.stringify({ power }))
+      socket.send(JSON.stringify({ speed: value }))
     }
 
     // Close the connection (optional)
