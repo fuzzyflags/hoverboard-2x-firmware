@@ -28,8 +28,8 @@
 
 // ################################################################################
 
-#define PWM_FREQ         		16000     // PWM frequency in Hz
-#define DEAD_TIME        		60        // PWM deadtime (60 = 1µs, measured by oscilloscope)
+#define PWM_FREQ         		27000     // PWM frequency in Hz
+#define DEAD_TIME        		60        // PWM deadtime (60 = 1ï¿½s, measured by oscilloscope)
 #define DC_CUR_LIMIT_MA  		15000     // Motor DC current limit in milli Amps
 
 // ################################################################################

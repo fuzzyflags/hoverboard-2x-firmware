@@ -24,12 +24,13 @@
 */
 
 #include "gd32f1x0.h"
+#include "gd32f1x0_rcu.h"
 #include "../Inc/setup.h"
 #include "../Inc/defines.h"
 #include "../Inc/config.h"
 #include "../Inc/it.h"
 
-#define TIMEOUT_FREQ  1000
+#define TIMEOUT_FREQ  600
 
 // timeout timer parameter structs
 timer_parameter_struct timeoutTimer_paramter_struct;
@@ -108,9 +109,9 @@ void TimeoutTimer_init(void)
 	// Set up the basic parameter struct for the timer
 	// Update event will be fired every 1ms
 	timeoutTimer_paramter_struct.counterdirection 	= TIMER_COUNTER_UP;
-	timeoutTimer_paramter_struct.prescaler = clk_src / 10000 - 1;
+	timeoutTimer_paramter_struct.prescaler = clk_src / 300000 - 1;
 	timeoutTimer_paramter_struct.alignedmode 				= TIMER_COUNTER_CENTER_DOWN;
-	timeoutTimer_paramter_struct.period							= (TIMEOUT_FREQ / 1000)*10 - 1;
+	timeoutTimer_paramter_struct.period							= (300000 / TIMEOUT_FREQ) - 1;
 	timeoutTimer_paramter_struct.clockdivision 			= TIMER_CKDIV_DIV1;
 	timeoutTimer_paramter_struct.repetitioncounter 	= 0;
 	timer_auto_reload_shadow_disable(TIMER13);
@@ -244,7 +245,7 @@ void PWM_init(void)
 	timerBldc_paramter_struct.counterdirection 	= TIMER_COUNTER_UP;
 	timerBldc_paramter_struct.prescaler 				= 0;
 	timerBldc_paramter_struct.alignedmode 			= TIMER_COUNTER_CENTER_DOWN;
-	timerBldc_paramter_struct.period						= 72000000 / 2 / PWM_FREQ;
+	timerBldc_paramter_struct.period						= 36000000 / PWM_FREQ - 1;
 	timerBldc_paramter_struct.clockdivision 		= TIMER_CKDIV_DIV1;
 	timerBldc_paramter_struct.repetitioncounter = 0;
 	timer_auto_reload_shadow_disable(TIMER_BLDC);
