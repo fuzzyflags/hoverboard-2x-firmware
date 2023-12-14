@@ -50,7 +50,6 @@ extern uint16_t currentDCmA     ;
 extern int16_t  realSpeedmmPS   ;
 extern int32_t  phasePeriod ;
 extern int32_t  cycles      ;
-extern int8_t   controlMode	;
 extern uint8_t  speedMode ;
 extern uint8_t  maxStepSpeed ;
 extern int16_t  outF ;
@@ -245,8 +244,6 @@ void SendHUGSReply()
 	int16_t tempInt = 0;
 	int32_t tempLong = 0;
 	
-	bitStatus |= (controlMode << 1);
-
 	buffer[0] = '/';
 	buffer[1] = 1;
 	buffer[2] = HUGS_Sequence << 4;

@@ -37,10 +37,10 @@
 #define TRANSITION_ANGLE	233
 
 // Internal constants
-const int16_t pwm_res = 72000000 / 2 / PWM_FREQ; // = 2000
+const int16_t pwm_res = 36000000 / PWM_FREQ; // = 1333
 const int32_t WHEEL_PERIMETER    = 530 ;  // mm
 const int32_t SPEED_TICKS_FACTOR = 188444 ;  // Divide factor by speed to get ticks per cycle, or visa versa.
-const int32_t SINE_TICKS_FACTOR  = 3010   ;  // Divide factor by speed to get ticks per degree.
+const int32_t SINE_TICKS_FACTOR  = 1505   ;  // Divide factor by speed to get ticks per degree.
 const int32_t MIN_SPEED          = 5 ;       // min usable speed in mm/S
 const int32_t MAX_PHASE_PERIOD   = SPEED_TICKS_FACTOR / MIN_SPEED ;   // one phase count @ MIN_SPEED
 const float MM_PER_CYCLE_FLOAT   = 5.888;	   //  (530 / 90)
@@ -53,8 +53,7 @@ const int16_t	sineTable[FULL_PHASE] = {0, 31, 63, 94, 117, 148, 180, 211, 242, 2
 //----------------------------------------------------------------------------
 // Commutation table Phase increments
 //----------------------------------------------------------------------------
-const uint8_t hall_to_pos[8] =
-{
+const uint8_t hall_to_pos[8] = {
 	// Note: Changed Comutation numbers 1-based to 0 based.
 	// annotation: for example SA=0 means hall sensor pulls SA down to Ground
   6, // hall position [0] - No function (access from 0-5) 
@@ -74,7 +73,7 @@ int32_t speedCounter 			= 0;
 int32_t phasePeriod 			= 0;
 int8_t  stepDir	 				  = 0;  // determined rotation direction
 int8_t  speedDir					= 0;  // commanded rotation direction
-int8_t  controlMode				= 0;  // 1,2 or 3
+
 uint8_t speedMode					= DEFAULT_SPEED_MODE;      // Desired Closed Loop Speed Mode.  0 = PF, 1 = STEP, 2 = Dual 
 uint8_t maxStepSpeed			= DEFAULT_MAX_STEP_SPEED;  // 
 
@@ -85,10 +84,8 @@ int16_t outI 							= 0;
 int32_t speedError 				= 0;
 int32_t errorIntegral			= 0;	// PID components scaled up by 15 bits
 
-bool		stepperMode				= false;
-bool		phaseRestart			= false;
-int32_t stepperPeriod     = 0;
-int32_t stepperTicks      = 0;
+uint32_t stepperPeriod     = 0;
+uint32_t stepperTicks      = 0;
 
 int16_t	step_y						= PHASE_Y_OFFSET;
 int16_t	step_b						= PHASE_B_OFFSET;
@@ -192,9 +189,7 @@ void SetEnable(FlagStatus setEnable)
 void SetSpeed(int16_t speed)
 {
 	//  Keep driver alive
-	if (abs16(speed) >= 10) {
-		resetInactivityTimer();
-	}
+	if (abs16(speed) >= 10) resetInactivityTimer();
 
 	closedLoopSpeed = true;
 	speedSetpoint = CLAMP(speed, -5000, 5000);
@@ -205,27 +200,6 @@ void SetSpeed(int16_t speed)
 		speedDir = -1;
 	else {
 		speedDir = 0;
-		controlMode = 0;
-	}
-	
-	// Do we need stepper mode?
-  if ( (speedMode == SPEED_MODE_PF) ||
-       ((speedMode == SPEED_MODE_DUAL) && (abs16(speedSetpoint) > maxStepSpeed))
-		 ) { 
-		stepperMode = false;
-		phaseRestart = false;
-	} else {
-
-		// do we need to defer switching to stepper to get synched?
-		// we do this is we are currently in closed loop and are slowing down.
-		// If we don't do this, the wheel jumps forward or back
-		if (controlMode == 3) {
-			phaseRestart = true;
-		} else {
-			stepperMode = true; 							 // Turn on stepper now
-		}
-		
-		stepperPeriod = SINE_TICKS_FACTOR / abs16(speedSetpoint) ;
 	}
 }
 
@@ -239,11 +213,9 @@ void SetPower(int16_t power)
 		resetInactivityTimer();
 	}
 	closedLoopSpeed = false;
-	stepperMode   = false;
 	speedSetpoint = 0;
 	
 	if (power == 0)
-		controlMode = 0;
 	
 	// stepperTicks  = 0;
 	SetPWM(power);
@@ -299,151 +271,44 @@ int32_t GetPosition(void) {
 	return (int32_t)((float)cycles * MM_PER_CYCLE_FLOAT) ;
 }
 
+void updateEnergyValues(){
+	uint16_t tempV = (uint16_t)(((uint32_t)adc_buffer.v_batt * ADC_BATTERY_MICRO_VOLT) / 1000);
+	uint16_t tempI = (uint16_t)((ABS((adc_buffer.current_dc - offsetdc) * MOTOR_AMP_CONV_DC_MICRO_AMP)) / 1000);
+
+	batteryVoltagemV 	+= ((tempV - batteryVoltagemV) / 100);
+	currentDCmA 			+= ((tempI - currentDCmA) / 100);
+}
+
+void calibrateAdc(){
+	offsetcount++;
+	offsetdc = (adc_buffer.current_dc + offsetdc) / 2;
+}
+
 //----------------------------------------------------------------------------
 // Calculation-Routine for BLDC => calculates with 32kHz  (was 16 kHz)
 // Written so there are no function calls requiring stack protection.
 //----------------------------------------------------------------------------
-void CalculateBLDC(void)
-{
-	int8_t stepDif;
+void CalculateBLDC(void){
+	if(speedSetpoint != 0){
+		stepperPeriod = SINE_TICKS_FACTOR / abs16(speedSetpoint);
 
-	// Create square wave for buzzer
-	buzzerTimer++;
-	if (buzzerFreq != 0 && (buzzerTimer / 5000) % (buzzerPattern + 1) == 0){
-		if (buzzerTimer % buzzerFreq == 0){
-			buzzerToggle = buzzerToggle == RESET ? SET : RESET; // toggle variable
-			gpio_bit_write(BUZZER_PORT, BUZZER_PIN, buzzerToggle);
+		if (++stepperTicks % stepperPeriod == 0) {
+			setPhaseAngle(step_y + speedDir);
 		}
-	} else {
-		gpio_bit_write(BUZZER_PORT, BUZZER_PIN, RESET);
+		// Get three PWM values from sine table 
+		y = sineTable[step_y] >> 3;	
+		b = sineTable[step_g] >> 3;	
+		g = sineTable[step_b] >> 3;	
+	}else{
+		y = 0;
+		b = 0;
+		g = 0;
 	}
 
-	// Calibrate ADC offsets for the first 1000 cycles
-  if (offsetcount < 1000) {  
-    offsetcount++;
-    offsetdc = (adc_buffer.current_dc + offsetdc) / 2;
-    return;
-  }
-	
-	// Calculate battery voltage & current every 100 cycles
-  if (buzzerTimer % 100 == 0) {
-		uint16_t tempV = (uint16_t)(((uint32_t)adc_buffer.v_batt * ADC_BATTERY_MICRO_VOLT) / 1000);
- 		uint16_t tempI = (uint16_t)((ABS((adc_buffer.current_dc - offsetdc) * MOTOR_AMP_CONV_DC_MICRO_AMP)) / 1000);
-
-		batteryVoltagemV 	+= ((tempV - batteryVoltagemV) / 100);
-		currentDCmA 			+= ((tempI - currentDCmA) / 100);
-  }
-
-  // Disable PWM when current limit is reached (current chopping), enable is not set or timeout is reached
-	if (currentDCmA > DC_CUR_LIMIT_MA || bldcEnable == RESET || timedOut == SET) {
-		timer_automatic_output_disable(TIMER_BLDC);		
-  } else {
-		timer_automatic_output_enable(TIMER_BLDC);
-  }
-
-	// Get current commutation position	
-  pos = hallToPos();
-	
-	// Are we switching phase steps?  If so, time to calculate phase period 
-	if (pos != lastPos) {
-		phasePeriod = speedCounter;
-		speedCounter = 0;
-		
-		// Check direction of rotation
-		stepDif = pos - lastPos;
-		if ((stepDif == 1) ||  (stepDif == -5))
-			stepDir = 1;
-		else if ((stepDif == -1) || (stepDif == 5))
-			stepDir = -1;
-
-		// Integrate steps to measure distance
-		cycles += stepDir;
-		
-		// if we are waiting for a phase restart, load new angle.
-		if (phaseRestart) {
-			phaseRestart = false;
-			stepperMode = true;
-			
-			setPhaseAngle(getTransitionAngle());
-		}
-	}
-	
-	// Accumulate counters for speed and phase duration
-	// Increments with 31.25 us
-	if(speedCounter < MAX_PHASE_PERIOD) { // No speed less than MIN_SPEED
-		speedCounter += 1;
-	} else {
-		phasePeriod = MAX_PHASE_PERIOD;  // MIN_SPEED phase duration 
-		realSpeedmmPS = 0;
-	}
-	
-	// ======================================================================================	
-	// Determine desired phase commutation and PWM based on operational mode
-	// Three conditions are:  
-	// 1) Open loop power
-	// 2) Closed Loop Stepping (Slow Speed)
-	// 3) Closed Loop Running (PIDF), (Fast Speed)
-	// ======================================================================================	
-	
-	if (closedLoopSpeed) {
-
-		if (speedSetpoint == 0){
-			SetPWM(0) ;
-		} else {
-			
-			// determine speed error and set power level
-			SetPWM(runPID());
-	
-		}
-
-		// Calculate low-pass filter for pwm value (we don't always need it. but best to keep running.)
-		PWMFilterReg = PWMFilterReg - (PWMFilterReg >> PWM_FILTER_SHIFT) + bldcInputPwm;
-		bldcFilteredPwm = PWMFilterReg >> PWM_FILTER_SHIFT;
-
-		if (stepperMode) {
-			// 2) Closed Loop Stepping (Slow Speed)
-			controlMode = 2;
-			stepperTicks++;
-			
-			// Are we moving to the next angle?
-			if (stepperTicks >= stepperPeriod) {
-				setPhaseAngle(step_y + speedDir);
-				stepperTicks = 0;
-			}
-				
-			// Get three PWM values from sine table 
-			y = sineTable[step_y] >> 3;	
-			b = sineTable[step_g] >> 3;	
-			g = sineTable[step_b] >> 3;	
-			
-		} else {
-			// 3) Closed Loop Running (PIDF), (Fast Speed)
-			controlMode = 3;
-		
-			// Update PWM channels based on position y(ellow), b(lue), g(reen)
-			blockPWM(bldcFilteredPwm, pos, &y, &b, &g);
-		}
-	} else {
-		// 1) Open loop power, so just apply filtered PWM to correct phases
-		controlMode = 1;
-
-		// Calculate low-pass filter for pwm value
-		PWMFilterReg = PWMFilterReg - (PWMFilterReg >> PWM_FILTER_SHIFT) + bldcInputPwm;
-		bldcFilteredPwm = PWMFilterReg >> PWM_FILTER_SHIFT;
-
-		// Update PWM channels based on position y(ellow), b(lue), g(reen)
-		blockPWM(bldcFilteredPwm, pos, &y, &b, &g);
-	}
-		
-	// Set PWM output (pwm_res/2 is the mean value, setvalue has to be between 10 and pwm_res-10)
 	timer_channel_output_pulse_value_config(TIMER_BLDC, TIMER_BLDC_CHANNEL_G, CLAMP(g + pwm_res / 2, 10, pwm_res-10));
 	timer_channel_output_pulse_value_config(TIMER_BLDC, TIMER_BLDC_CHANNEL_B, CLAMP(b + pwm_res / 2, 10, pwm_res-10));
 	timer_channel_output_pulse_value_config(TIMER_BLDC, TIMER_BLDC_CHANNEL_Y, CLAMP(y + pwm_res / 2, 10, pwm_res-10));
-	
-	// Safe last position
-	lastPos = pos;
 }
-
 
 // PIDF coefficients are all scaled up by 15 bits (32768)
 const int32_t KF      = (int32_t)(32768.0 *   0.16) ;
@@ -451,31 +316,6 @@ const int32_t KFO     = (int32_t)(32768.0 *  28.0) ;
 const int32_t KP      = (int32_t)(32768.0 *   0.2) ;
 const int32_t KI      = (int32_t)(32768.0 *   0.00005) ;
 const int32_t ILIMIT  = (int32_t)(32768.0 * 150) ;
-
-
-int16_t	runPID() {
-	speedError = (speedSetpoint - realSpeedmmPS) ;
-	
-	// Determine Feed Forward and Proportional terms
-	outF = ((speedSetpoint * KF) + (speedDir * KFO)) >> 15 ;
-	outP = (speedError * KP) >> 15;
-
-	// reset integral term if speed request near zero, or has changed signs.
-	// otherwise intergrate error
-	if ((abs32(speedSetpoint) < MIN_SPEED) ||
-      ((speedSetpoint * lastSpeedSetpoint) < 0))	{
-		errorIntegral = 0;
-	} else {
-		errorIntegral += (speedError * KI) ;
-		errorIntegral = CLAMP(errorIntegral, (-ILIMIT), ILIMIT);  // do not let integral wind up too much
-	}
-	outI = errorIntegral >> 15;
-	
-	lastSpeedSetpoint = speedSetpoint;
-	
-	// Combine terms to form output
-	return (outF + outP + outI) ;
-}
 
 uint8_t	hallToPos() {
 	
