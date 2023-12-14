@@ -58,7 +58,7 @@
 #define TASK_STACK_SIZE    2048
 
 static const char *TAG = "remote_control";
-volatile short power = 0;
+volatile short speed = 0;
 
 #define BUF_SIZE (1024)
 
@@ -66,7 +66,16 @@ short data_to_short(const char *data){
   return (data[0] << 8) | data[1];
 }
 
-static void transmit_power(void *arg) {
+void send_data(unsigned char *command, size_t size){
+  unsigned char length = command[1];
+  uint16_t crc = calc_crc(command, length + 5);
+  command[length + 5] = crc & 0xFF;
+  command[length + 6] = (crc >> 8) & 0xFF;
+  command[length + 7] = '\n';
+  uart_write_bytes(UART_PORT_NUM, (const char *)command, size);
+}
+
+static void transmit_instructions(void *arg) {
   /* Configure parameters of an UART driver,
     * communication pins and install the driver */
   uart_config_t uart_config = {
@@ -88,14 +97,10 @@ static void transmit_power(void *arg) {
   ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, TEST_TXD, TEST_RXD, TEST_RTS, TEST_CTS));
 
   while (1) {
-    unsigned char length = PWRcommand[1];
-    uint16_t crc = calc_crc(PWRcommand, length + 5);
-    PWRcommand[5] = power & 0xFF;
-    PWRcommand[6] = (power >> 8) & 0xFF;
-    PWRcommand[length + 5] = crc & 0xFF;
-    PWRcommand[length + 6] = (crc >> 8) & 0xFF;
-    PWRcommand[length + 7] = '\n';
-    uart_write_bytes(UART_PORT_NUM, (const char *) PWRcommand, sizeof(PWRcommand));
+    // send_data(MODcommand, sizeof(MODcommand));
+    SPEcommand[5] = speed & 0xFF;
+    SPEcommand[6] = (speed >> 8) & 0xFF;
+    send_data(SPEcommand, sizeof(SPEcommand));
   }
 }
 
@@ -107,19 +112,11 @@ static void udp_server_task(void *pvParameters) {
     struct sockaddr_in6 dest_addr;
 
     while (1) {
-
-        if (addr_family == AF_INET) {
-            struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
-            dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
-            dest_addr_ip4->sin_family = AF_INET;
-            dest_addr_ip4->sin_port = htons(PORT);
-            ip_protocol = IPPROTO_IP;
-        } else if (addr_family == AF_INET6) {
-            bzero(&dest_addr.sin6_addr.un, sizeof(dest_addr.sin6_addr.un));
-            dest_addr.sin6_family = AF_INET6;
-            dest_addr.sin6_port = htons(PORT);
-            ip_protocol = IPPROTO_IPV6;
-        }
+        struct sockaddr_in *dest_addr_ip4 = (struct sockaddr_in *)&dest_addr;
+        dest_addr_ip4->sin_addr.s_addr = htonl(INADDR_ANY);
+        dest_addr_ip4->sin_family = AF_INET;
+        dest_addr_ip4->sin_port = htons(PORT);
+        ip_protocol = IPPROTO_IP;
 
         int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
         if (sock < 0) {
@@ -175,7 +172,7 @@ static void udp_server_task(void *pvParameters) {
             // Error occurred during receiving
             if (len < 0) {
                 ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-                power = 0;
+                // speed = 0;
                 break;
             }
             // Data received
@@ -198,13 +195,13 @@ static void udp_server_task(void *pvParameters) {
             rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string...
             ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
             ESP_LOGI(TAG, "%s", rx_buffer);
-            // SET POWER
-            power = data_to_short(rx_buffer);
-            ESP_LOGI(TAG, "New power value: %d", power);
+            // SET speed
+            speed = data_to_short(rx_buffer);
+            ESP_LOGI(TAG, "New speed value: %d", speed);
 
             int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
             if (err < 0) {
-                power = 0;
+                speed = 0;
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
                 break;
             }
@@ -213,7 +210,7 @@ static void udp_server_task(void *pvParameters) {
         if (sock != -1) {
             ESP_LOGE(TAG, "Shutting down socket and restarting...");
             shutdown(sock, 0);
-            power = 0;
+            // speed = 0;
             close(sock);
         }
     }
@@ -232,5 +229,5 @@ void app_main(void){
 
   ap_init();
   xTaskCreate(udp_server_task, "udp_server", 4096, (void*)AF_INET, 5, NULL);
-  xTaskCreate(transmit_power, "uart_tx_task", TASK_STACK_SIZE, NULL, 10, NULL);
+  xTaskCreate(transmit_instructions, "uart_tx_task", TASK_STACK_SIZE, NULL, 10, NULL);
 }
