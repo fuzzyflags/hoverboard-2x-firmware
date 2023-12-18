@@ -9,6 +9,7 @@
   "author": "Alfredo G",
   "license": "ISC",
   "dependencies": {
+    "joystick": "^0.1.2",
     "ws": "^8.14.2"
   }
 }

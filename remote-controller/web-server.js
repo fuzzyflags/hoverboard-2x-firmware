@@ -4,21 +4,7 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 
-const dgram = require('node:dgram');
-const udpClient = dgram.createSocket('udp4');
-
-const sendUdp = (speed) => {
-  console.log('Sending', speed)
-  const buffer = Buffer.alloc(2);
-  buffer.writeInt16LE(speed);
-  buffer.reverse(); // TODO: fix? improve?
-  udpClient.send(buffer, 0, buffer.byteLength, 9042, '192.168.4.1',
-    (err) => {
-      if (err) {
-        console.error('Error sending UDP message:', err);
-      }
-    });
-}
+const { sendSpeed } = require('./controls')
 
 // Create an HTTP server
 const server = http.createServer((req, res) => {
@@ -58,7 +44,7 @@ wss.on('connection', (ws) => {
     const parsedSpeed = parseInt(payload['speed'], 10);
     if (!isNaN(parsedSpeed)) {
       // SEND VALUES TO ESP32 VIA UDP
-      sendUdp(parsedSpeed);
+      sendSpeed(parsedSpeed);
     } else {
       console.log('Invalid message format. Expected an integer.');
     }
@@ -67,7 +53,7 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     console.log('Client disconnected');
     for(let i = 0; i < 20; i++){
-      sendUdp(0)
+      sendSpeed(0)
     }
   });
 });
