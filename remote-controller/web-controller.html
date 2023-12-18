@@ -48,7 +48,7 @@
     });
 
     // Add an event listener for slider changes
-    const slider = document.getElementById('powerSlider');
+    const slider = document.getElementById('speedSlider');
     slider.addEventListener('input', sliderUpdated);
 
     // Function to send the current slider value to the server
@@ -60,9 +60,6 @@
       // Send the slider value to the server
       socket.send(JSON.stringify({ speed: value }))
     }
-
-    // Close the connection (optional)
-    // socket.close();
   </script>
 </body>
 </html>
