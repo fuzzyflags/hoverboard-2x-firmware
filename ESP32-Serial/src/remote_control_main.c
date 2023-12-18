@@ -199,12 +199,14 @@ static void udp_server_task(void *pvParameters) {
             speed = data_to_short(rx_buffer);
             ESP_LOGI(TAG, "New speed value: %d", speed);
 
+            /* Send answer back to client
             int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
             if (err < 0) {
                 speed = 0;
                 ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
                 break;
             }
+            */
         }
 
         if (sock != -1) {
