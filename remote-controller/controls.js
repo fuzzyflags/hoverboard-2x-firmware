@@ -14,44 +14,43 @@ udpClient.sendAsync = (...args) => {
   })
 }
 
-// TODO: Deprecate?
-const sendSpeed = async (speed) => {
-  console.log('Sending', speed)
-  const buffer = Buffer.alloc(2);
-  buffer.writeInt16LE(speed);
-  buffer.reverse(); // TODO: fix? improve?
-  udpClient.send(buffer, 0, buffer.byteLength, 9042, '192.168.4.1',
-    (err) => {
-      if (err) {
-        console.error('Error sending UDP message:', err);
-      }else{
-        console.log('Done sending', speed)
-      }
-    });
-}
+const CONTROL_PORT = 9042
 
 class SpeedController{
   constructor(){
-    this.speed = 0;
+    this.left_speed = 0;
+    this.right_speed = 0;
     this.interval = setInterval(async () => {
       await this._sendSpeed()
     }, 70);
   }
 
-  setSpeed(speed){
-    this.speed = speed
+  parseSpeed(speed){
+    if(!isNaN(speed)){
+      return speed
+    }else{
+      return parseInt(speed, 10);
+    }
   }
 
-  async _sendSpeed(){
-    if(this.speed !== 0){
-      console.log('Sending', this.speed)
+  setSpeed(left_speed, right_speed){
+    this.left_speed = this.parseSpeed(left_speed)
+    if(right_speed){
+      this.right_speed = this.parseSpeed(right_speed)
     }
-    const buffer = Buffer.alloc(2);
-    buffer.writeInt16LE(this.speed);
-    buffer.reverse(); // TODO: fix? improve?
+  }
+
+  // Send values to ESP32 via UDP
+  async _sendSpeed(){
+    if(this.left_speed !== 0 || this.right_speed !== 0){
+      console.log('Sending', this.left_speed, this.right_speed)
+    }
+    const buffer = Buffer.alloc(4);
+    buffer.writeInt16LE(this.left_speed);
+    buffer.writeInt16LE(this.right_speed, 2);
     try{
       await udpClient.sendAsync(
-        buffer, 0, buffer.byteLength, 9042, '192.168.4.1')
+        buffer, 0, buffer.byteLength, CONTROL_PORT, '192.168.4.1')
     }catch(err){
       console.error('Error sending UDP message:', err);
     }
@@ -59,6 +58,5 @@ class SpeedController{
 }
 
 module.exports = {
-  sendSpeed,
   speedController: new SpeedController(),
 }

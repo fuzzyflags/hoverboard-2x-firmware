@@ -16,11 +16,16 @@
 </head>
 <body>
   <h1>FZ2000 Remote Controller</h1>
-  <input type="range" id="speedSlider"
-    min="-1000" max="1000" step="1" value="0"
+  <input type="range" id="leftControl"
+    min="-530" max="530" step="1" value="0"
     style="width: 100%"
   />
-  <span id="speedValue">0</span>
+  <p id="leftValue">0</p>
+  <input type="range" id="rightControl"
+    min="-530" max="530" step="1" value="0"
+    style="width: 100%"
+  />
+  <p id="rightValue">0</p>
   <script>
     const socket = new WebSocket('ws://localhost:3000');
 
@@ -48,17 +53,21 @@
     });
 
     // Add an event listener for slider changes
-    const slider = document.getElementById('speedSlider');
-    slider.addEventListener('input', sliderUpdated);
+    document.getElementById('leftControl')
+      .addEventListener('input', sendSpeeds);
+    document.getElementById('rightControl')
+      .addEventListener('input', sendSpeeds);
 
     // Function to send the current slider value to the server
-    function sliderUpdated(evt) {
-      const { value } = evt.target;
-      const valueBox = document.getElementById("speedValue");
-      valueBox.innerText = String(value);
-      console.log(`Sending ${evt.target.id} value: ${value}`);
+    function sendSpeeds() {
+      const left_speed = document.getElementById("leftControl").value;
+      document.getElementById("leftValue").innerText = String(left_speed);
+
+      const right_speed = document.getElementById("rightControl").value;
+      document.getElementById("rightValue").innerText = String(right_speed);
+
       // Send the slider value to the server
-      socket.send(JSON.stringify({ speed: value }))
+      socket.send(JSON.stringify({ left_speed, right_speed }))
     }
   </script>
 </body>

@@ -4,7 +4,7 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 
-const { sendSpeed } = require('./controls')
+const { speedController } = require('./controls')
 
 // Create an HTTP server
 const server = http.createServer((req, res) => {
@@ -38,22 +38,14 @@ wss.on('connection', (ws) => {
   // Event listener for messages from clients
   ws.on('message', (payload) => {
     payload = JSON.parse(payload)
-    for(const [k, v] of Object.entries(payload)){
-      console.log(`\t${k}: ${v}`)
-    }
-    const parsedSpeed = parseInt(payload['speed'], 10);
-    if (!isNaN(parsedSpeed)) {
-      // SEND VALUES TO ESP32 VIA UDP
-      sendSpeed(parsedSpeed);
-    } else {
-      console.log('Invalid message format. Expected an integer.');
-    }
+    const { left_speed = 0, right_speed = 0 } = payload
+    speedController.setSpeed(left_speed, right_speed);
   });
 
   ws.on('close', () => {
     console.log('Client disconnected');
     for(let i = 0; i < 20; i++){
-      sendSpeed(0)
+      speedController.setSpeed(0)
     }
   });
 });
