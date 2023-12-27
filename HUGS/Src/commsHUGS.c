@@ -205,7 +205,13 @@ bool CheckUSARTHUGSInput(uint8_t USARTBuffer[])
 		case SPE:
 			// Set the constant Speed (in mm/s)
 			SetEnable(SET);  
-			SetSpeed((int16_t)((uint16_t)USARTBuffer[6] << 8) +  (uint16_t)USARTBuffer[5]);
+			int16_t speed = (int16_t)((uint16_t)USARTBuffer[6] << 8) +  (uint16_t)USARTBuffer[5];
+			if(speed > 530){
+				speed = 530;
+			}else if(speed < -530){
+				speed = -530;
+			}
+			SetSpeed(speed);
 		  break;
 
 		case XXX:
