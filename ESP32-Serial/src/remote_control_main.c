@@ -48,31 +48,38 @@
  * - Pin assignment: see defines below (See Kconfig)
  */
 
-#define TEST_TXD 17
-#define TEST_RXD 18
+// Left wheel
+#define LEFT_UART_PORT_NUM      1
+#define LEFT_TXD 17
+#define LEFT_RXD 18
+// Right wheel
+#define RIGHT_UART_PORT_NUM      0
+#define RIGHT_TXD 43
+#define RIGHT_RXD 44
+
 #define TEST_RTS (UART_PIN_NO_CHANGE)
 #define TEST_CTS (UART_PIN_NO_CHANGE)
 
-#define UART_PORT_NUM      1
 #define UART_BAUD_RATE     115200
 #define TASK_STACK_SIZE    2048
 
 static const char *TAG = "remote_control";
-volatile short speed = 0;
+volatile short left_speed = 0;
+volatile short right_speed = 0;
 
 #define BUF_SIZE (1024)
 
 short data_to_short(const char *data){
-  return (data[0] << 8) | data[1];
+  return (data[1] << 8) | data[0];
 }
 
-void send_data(unsigned char *command, size_t size){
+void send_uart(uint8_t port, unsigned char *command, size_t size){
   unsigned char length = command[1];
   uint16_t crc = calc_crc(command, length + 5);
   command[length + 5] = crc & 0xFF;
   command[length + 6] = (crc >> 8) & 0xFF;
   command[length + 7] = '\n';
-  uart_write_bytes(UART_PORT_NUM, (const char *)command, size);
+  uart_write_bytes(port, (const char *)command, size);
 }
 
 static void transmit_instructions(void *arg) {
@@ -92,15 +99,22 @@ static void transmit_instructions(void *arg) {
   intr_alloc_flags = ESP_INTR_FLAG_IRAM;
 #endif
 
-  ESP_ERROR_CHECK(uart_driver_install(UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
-  ESP_ERROR_CHECK(uart_param_config(UART_PORT_NUM, &uart_config));
-  ESP_ERROR_CHECK(uart_set_pin(UART_PORT_NUM, TEST_TXD, TEST_RXD, TEST_RTS, TEST_CTS));
+  ESP_ERROR_CHECK(uart_driver_install(LEFT_UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
+  ESP_ERROR_CHECK(uart_param_config(LEFT_UART_PORT_NUM, &uart_config));
+  ESP_ERROR_CHECK(uart_set_pin(LEFT_UART_PORT_NUM, LEFT_TXD, LEFT_RXD, TEST_RTS, TEST_CTS));
+
+  ESP_ERROR_CHECK(uart_driver_install(RIGHT_UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, intr_alloc_flags));
+  ESP_ERROR_CHECK(uart_param_config(RIGHT_UART_PORT_NUM, &uart_config));
+  ESP_ERROR_CHECK(uart_set_pin(RIGHT_UART_PORT_NUM, RIGHT_TXD, RIGHT_RXD, TEST_RTS, TEST_CTS));
 
   while (1) {
     // send_data(MODcommand, sizeof(MODcommand));
-    SPEcommand[5] = speed & 0xFF;
-    SPEcommand[6] = (speed >> 8) & 0xFF;
-    send_data(SPEcommand, sizeof(SPEcommand));
+    SPEcommand[5] = left_speed & 0xFF;
+    SPEcommand[6] = (left_speed >> 8) & 0xFF;
+    send_uart(LEFT_UART_PORT_NUM, SPEcommand, sizeof(SPEcommand));
+    SPEcommand[5] = right_speed & 0xFF;
+    SPEcommand[6] = (right_speed >> 8) & 0xFF;
+    send_uart(RIGHT_UART_PORT_NUM, SPEcommand, sizeof(SPEcommand));
   }
 }
 
@@ -134,7 +148,7 @@ static void udp_server_task(void *pvParameters) {
         struct timeval timeout;
         timeout.tv_sec = 10;
         timeout.tv_usec = 0;
-        setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
+        setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
 
         int err = bind(sock, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
         if (err < 0) {
@@ -172,7 +186,8 @@ static void udp_server_task(void *pvParameters) {
             // Error occurred during receiving
             if (len < 0) {
                 ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
-                // speed = 0;
+                // left_speed = 0;
+                // right_speed = 0;
                 break;
             }
             // Data received
@@ -196,8 +211,9 @@ static void udp_server_task(void *pvParameters) {
             ESP_LOGI(TAG, "Received %d bytes from %s:", len, addr_str);
             ESP_LOGI(TAG, "%s", rx_buffer);
             // SET speed
-            speed = data_to_short(rx_buffer);
-            ESP_LOGI(TAG, "New speed value: %d", speed);
+            left_speed = data_to_short(rx_buffer);
+            right_speed = data_to_short(rx_buffer + 2);
+            ESP_LOGI(TAG, "New speed values: %d, %d", left_speed, right_speed);
 
             /* Send answer back to client
             int err = sendto(sock, rx_buffer, len, 0, (struct sockaddr *)&source_addr, sizeof(source_addr));
